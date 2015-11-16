@@ -22,7 +22,6 @@ func ReadKeys(filename string, output KeyChan) {
 	 This starts the reader thread.
 	*/
 	ch := puck_gpg.ReadKeys(reader)
-	//var val puck_gpg.ReadKeyResult
 	for val := range ch {
 		if val.Error != nil {
 			panic(val.Error)
