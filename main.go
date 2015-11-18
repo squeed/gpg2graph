@@ -1,40 +1,64 @@
 package main
 
 import (
-	"github.com/rcrowley/go-metrics"
-	"os"
+	"flag"
 	"github.com/alexcesaro/log/stdlog"
+	"github.com/rcrowley/go-metrics"
 	"log"
+	"os"
+	"path/filepath"
 )
 
 var app App
 
 func main() {
-	var conf Config
-
-	conf = GetConfig()
-	app = App{
-			Config: conf,
-			Logger: stdlog.GetFromFlags(),
-		}
+	config := new(Config)
 	
-	if len(os.Args) == 1 {
-		log.Fatal("Not enough args, foo")
+	flag.StringVar(&config.Neo4JUrl, "db", "http://neo4j:keys@localhost:7474/", "Neo4J URL")
+	flag.StringVar(&config.WorkDir, "workdir", "", "The work dir for temporary files")
+	
+	flag.Parse()
+	
+	app = App{
+		Config: config,
+		Logger: stdlog.GetFromFlags(),
 	}
-	filename := os.Args[1]
+	
+	if app.Config.Neo4JUrl == "" {
+		log.Fatal("db must be provided")
+	}
+	
+	if app.Config.WorkDir == "" {
+		log.Fatal("Workdir must be provided")
+	}
+	st, err := os.Stat(app.Config.WorkDir); if err != nil {log.Fatal(err)}
+	if !st.Mode().IsDir() {
+		log.Fatal("Workdir is not a directory")
+	}
+	app.Config.WorkDir, err = filepath.Abs(app.Config.WorkDir); if err != nil {log.Fatal(err)}
+	
+	if flag.NArg() == 0 {
+		log.Fatal("key file must be provided")
+	}
+	
+	filename := flag.Arg(0)
+
 
 	log.Print("Connecting to Neo4j...")
 	connect(&app)
 
 	initMetrics(&app)
-	
+
 	keych := make(KeyChan)
-	
+
 	go metrics.Log(metrics.DefaultRegistry, 10e9, log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
-	
+
 	log.Print("Launching key reader...")
 	go ReadKeys(filename, keych)
-	LoadKeys(app, keych)
+
+	LoadKeysBulk(&app, keych)
+	//LoadKeys(app, keych)
+
 }
 
 func initMetrics(app *App) {

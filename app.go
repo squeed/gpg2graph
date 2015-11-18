@@ -6,11 +6,15 @@ import (
 	"github.com/alexcesaro/log"
 	)
 
-type GraphDBConn *neoism.Database
+type Config struct {
+	Neo4JUrl string
+	WorkDir string
+}
+
 
 type App struct {
-	Config  Config
-	GraphDB GraphDBConn
+	Config  *Config
+	GraphDB *neoism.Database
 	KeyCounter metrics.Meter
 	SigCounter metrics.Meter
 	Logger log.Logger

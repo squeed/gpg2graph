@@ -8,7 +8,7 @@ import (
 
 func connect(app *App) {
 	url := app.Config.Neo4JUrl
-	var db GraphDBConn
+	var db *neoism.Database
 	db, err := neoism.Connect(url)
 	if err != nil {
 		log.Fatal("Could not connect to DB", err)
@@ -19,9 +19,9 @@ func connect(app *App) {
 func addConstraints(conn *neoism.Database) {
 	statements := []string{
 		`CREATE CONSTRAINT ON(k:Key) ASSERT k.keyid IS UNIQUE;`,
-		`CREATE INDEX ON :Key(keyid)`,
+		//`CREATE INDEX ON :Key(keyid)`,
 		`CREATE CONSTRAINT ON(u:UserID) ASSERT u.uuid IS UNIQUE;`,
-		`CREATE INDEX ON :UserID(uuid)`,
+		//`CREATE INDEX ON :UserID(uuid)`,
 	}
 
 	for _, s := range statements {
@@ -44,23 +44,30 @@ func LoadKeys(app App, in chan *puck_gpg.PrimaryKey) {
 
 func LoadKey(app App, key *puck_gpg.PrimaryKey) {
 	conn := app.GraphDB
+	
+	kid := key.KeyID()
 
-	app.Logger.Debugf("Got key ID %s fpr %s", key.KeyID(), key.Fingerprint())
+	app.Logger.Debugf("Got key ID %s fpr %s", kid, key.Fingerprint())
 
 	InsertPubKey(conn, key)
 	app.KeyCounter.Mark(1)
 
 	for _, uid := range key.UserIDs {
 		InsertUID(conn, key, uid)
+		
+		for _, sig := range uid.Signatures {
+			if sig.IssuerKeyID() == kid {
+				continue
+			}
+			switch sig.SigType {
+			case 0x10, 0x11, 0x12, 0x13:
+				InsertSignature(conn, key, uid, sig)
+			}
+		}
 	}
 }
 
 func InsertPubKey(conn *neoism.Database, k *puck_gpg.PrimaryKey) {
-	/*name := "Unknown"
-	for _, uid := range k.UserIDs {
-		name = uid.Keywords
-		break
-	}*/
 
 	cq0 := neoism.CypherQuery{
 		Statement: `
@@ -71,7 +78,6 @@ func InsertPubKey(conn *neoism.Database, k *puck_gpg.PrimaryKey) {
 			n.fingerprint = {fingerprint};`,
 		Parameters: neoism.Props{
 			"keyid": k.KeyID(),
-			//"name":        name,
 			"fingerprint": k.Fingerprint()}}
 
 	err := conn.Cypher(&cq0)
@@ -112,15 +118,6 @@ func InsertUID(conn *neoism.Database, key *puck_gpg.PrimaryKey, uid *puck_gpg.Us
 	err := conn.Cypher(&cq0)
 	if err != nil {
 		panic(err)
-	}
-	for _, sig := range uid.Signatures {
-		if sig.IssuerKeyID() == kid {
-			continue
-		}
-		switch sig.SigType {
-		case 0x10, 0x11, 0x12, 0x13:
-			InsertSignature(conn, key, uid, sig)
-		}
 	}
 }
 
