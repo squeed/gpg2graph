@@ -93,9 +93,12 @@ func InsertKeysBulk(app *App, writers *KeyFiles) {
 			MERGE 
 				(n:Key {keyid: line[0]})
 			ON CREATE SET
-				n.fingerprint = line[1]
+				n.fingerprint = line[1],
+				n.created = line[2]
 			ON MATCH SET
-				n.fingerprint = line[1];`,
+				n.fingerprint = line[1],
+				n.created = line[2],
+				n.stub = false;`,
 		Parameters: neoism.Props{
 			"filename": "file://" + writers.Key_file.Name(),
 		}}
@@ -107,6 +110,8 @@ func InsertKeysBulk(app *App, writers *KeyFiles) {
 			USING PERIODIC COMMIT
 			LOAD CSV FROM {filename} AS line
 			MERGE (n:Key {keyid: line[0]})
+			ON CREATE SET
+				n.stub = true
 			`,
 		Parameters: neoism.Props{
 			"filename": "file://" + writers.Stub_key_file.Name(),
@@ -140,7 +145,9 @@ func InsertKeysBulk(app *App, writers *KeyFiles) {
 				(to:Key {keyid: line[0]})-[ii:HasID]-(to_id:UserID {uuid: line[2]}),
 				(from:Key {keyid: line[1]})
 			MERGE
-				from-[r:SIGNS]->(to_id)
+				(from)-[r:SIGNS {created: line[3]}]->(to_id)
+			MERGE
+				(from)-[r1:SIGNS_S]->(to)
 		`,
 		Parameters: neoism.Props{
 			"filename": "file://" + writers.Sig_file.Name(),
@@ -209,7 +216,7 @@ func WriteSignature(stub_key_writer *csv.Writer, sig_writer *csv.Writer, pubkey 
 		log.Fatal(err)
 	}
 
-	sigRecord := []string{signeeKID, signerKID, uid.UUID}
+	sigRecord := []string{signeeKID, signerKID, uid.UUID, strconv.FormatInt(sig.Creation.Unix(), 10)}
 	err = sig_writer.Write(sigRecord)
 	if err != nil {
 		log.Fatal(err)
