@@ -16,15 +16,8 @@ func connect(app *App) {
 	app.GraphDB = db
 }
 
-func addConstraints(conn *neoism.Database) {
-	statements := []string{
-		`CREATE CONSTRAINT ON(k:Key) ASSERT k.keyid IS UNIQUE;`,
-		//`CREATE INDEX ON :Key(keyid)`,
-		`CREATE CONSTRAINT ON(u:UserID) ASSERT u.uuid IS UNIQUE;`,
-		//`CREATE INDEX ON :UserID(uuid)`,
-	}
-
-	for _, s := range statements {
+func doQueries(conn *neoism.Database, queries []string) {
+	for _, s := range queries {
 		q := neoism.CypherQuery{
 			Statement: s,
 		}
@@ -33,8 +26,34 @@ func addConstraints(conn *neoism.Database) {
 			panic(err)
 		}
 	}
-
 }
+
+func addConstraints(conn *neoism.Database) {
+	
+	_, err := conn.CreateUniqueConstraint("Key", "keyid");
+	if err != nil {
+		app.Logger.Info("Failed to create constraint, probably already exists")
+	}
+	
+	_, err = conn.CreateUniqueConstraint("UserID", "uuid");
+	if err != nil {
+		app.Logger.Info("Failed to create constraint, probably already exists")
+	}
+}
+
+func addIndexes(conn *neoism.Database) {
+	
+	_, err := conn.CreateIndex("Key", "domain")
+	if err != nil {
+		app.Logger.Info("Failed to create index, probably already exists")
+	}
+	
+	_, err = conn.CreateIndex("Key", "email")
+	if err != nil {
+		app.Logger.Info("Failed to create index, probably already exists")
+	}
+}
+
 
 func LoadKeys(app App, in chan *puck_gpg.PrimaryKey) {
 	for key := range in {

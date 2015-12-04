@@ -28,25 +28,27 @@ func GetWriters(dirname string) *KeyFiles {
 		}
 	}
 
-	ret.Key_file, err = os.OpenFile(dirname+"/key.csv", os.O_CREATE|os.O_RDWR, 0666)
+	cflags := os.O_CREATE | os.O_WRONLY | os.O_TRUNC
+	
+	ret.Key_file, err = os.OpenFile(dirname+"/key.csv", cflags, 0666)
 	if err != nil {
 		log.Fatal(err)
 	}
 	ret.Key_writer = csv.NewWriter(ret.Key_file)
 
-	ret.Stub_key_file, err = os.OpenFile(dirname+"/stub_key.csv", os.O_CREATE|os.O_WRONLY, 0666)
+	ret.Stub_key_file, err = os.OpenFile(dirname+"/stub_key.csv", cflags, 0666)
 	if err != nil {
 		log.Fatal(err)
 	}
 	ret.Stub_key_writer = csv.NewWriter(ret.Stub_key_file)
 
-	ret.Uid_file, err = os.OpenFile(dirname+"/uid.csv", os.O_CREATE|os.O_WRONLY, 0666)
+	ret.Uid_file, err = os.OpenFile(dirname+"/uid.csv", cflags, 0666)
 	if err != nil {
 		log.Fatal(err)
 	}
 	ret.Uid_writer = csv.NewWriter(ret.Uid_file)
 
-	ret.Sig_file, err = os.OpenFile(dirname+"/sig.csv", os.O_CREATE|os.O_WRONLY, 0666)
+	ret.Sig_file, err = os.OpenFile(dirname+"/sig.csv", cflags, 0666)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -72,7 +74,7 @@ func LoadKeysBulk(app *App, in chan *puck_gpg.PrimaryKey) {
 	app.Logger.Info("Dumping keys to workdir")
 	WriteKeysBulk(writers, in)
 	
-	app.Logger.Info("Loading to Neo4J")
+	app.Logger.Info("Loading to Neo4J...")
 	InsertKeysBulk(app, writers)
 }
 
@@ -85,7 +87,7 @@ func q(app *App, query *neoism.CypherQuery) {
 
 }
 func InsertKeysBulk(app *App, writers *KeyFiles) {
-
+	app.Logger.Info("Inserting full keys")
 	keyQuery := neoism.CypherQuery{
 		Statement: `
 			USING PERIODIC COMMIT
@@ -105,6 +107,8 @@ func InsertKeysBulk(app *App, writers *KeyFiles) {
 
 	q(app, &keyQuery)
 
+
+	app.Logger.Info("Inserting stub keys")
 	stubKeyQuery := neoism.CypherQuery{
 		Statement: `
 			USING PERIODIC COMMIT
@@ -118,6 +122,7 @@ func InsertKeysBulk(app *App, writers *KeyFiles) {
 		}}
 	q(app, &stubKeyQuery)
 
+	app.Logger.Info("Inserting user ids")
 	uidQuery := neoism.CypherQuery{
 		Statement: `
 			USING PERIODIC COMMIT
@@ -137,6 +142,7 @@ func InsertKeysBulk(app *App, writers *KeyFiles) {
 
 	q(app, &uidQuery)
 
+	app.Logger.Info("Inserting signatures")
 	sigQuery := neoism.CypherQuery{
 		Statement: `
 			USING PERIODIC COMMIT
