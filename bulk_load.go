@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/jmcvetta/neoism"
 )
@@ -29,7 +30,7 @@ func GetWriters(dirname string) *KeyFiles {
 	}
 
 	cflags := os.O_CREATE | os.O_WRONLY | os.O_TRUNC
-	
+
 	ret.Key_file, err = os.OpenFile(dirname+"/key.csv", cflags, 0666)
 	if err != nil {
 		log.Fatal(err)
@@ -73,7 +74,7 @@ func LoadKeysBulk(app *App, in chan *puck_gpg.PrimaryKey) {
 
 	app.Logger.Info("Dumping keys to workdir")
 	WriteKeysBulk(writers, in)
-	
+
 	app.Logger.Info("Loading to Neo4J...")
 	InsertKeysBulk(app, writers)
 }
@@ -106,7 +107,6 @@ func InsertKeysBulk(app *App, writers *KeyFiles) {
 		}}
 
 	q(app, &keyQuery)
-
 
 	app.Logger.Info("Inserting stub keys")
 	stubKeyQuery := neoism.CypherQuery{
@@ -195,11 +195,15 @@ func WriteKey(key_writer *csv.Writer, key *puck_gpg.PrimaryKey) {
 }
 
 func WriteUID(uid_writer *csv.Writer, key *puck_gpg.PrimaryKey, uid *puck_gpg.UserID) {
-	parsed := parseUID(uid.Keywords)
+	kw := uid.Keywords
+	kw = strings.Replace(kw, `"`, ``, -1)
+	kw = strings.Replace(kw, "\n", ` `, -1)
+
+	parsed := parseUID(kw)
 
 	record := []string{
 		key.KeyID(),
-		uid.Keywords,
+		kw,
 		uid.UUID,
 		parsed.name,
 		parsed.comment,

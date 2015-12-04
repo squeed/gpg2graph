@@ -3,8 +3,8 @@ package main
 import (
 	"bytes"
 	"net/mail"
-	"strings"
 	"regexp"
+	"strings"
 )
 
 type EmailInfo struct {
@@ -82,7 +82,7 @@ func parseUID(address string) *EmailInfo {
 	var name, email, domain string
 
 	rest, comment := removeComments(address)
-	
+
 	response := mailre.FindStringSubmatch(rest)
 
 	if response != nil {

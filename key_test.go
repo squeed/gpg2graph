@@ -33,7 +33,7 @@ var uidTests = []uidTest{
 
 	[...]string{"Invalid",
 		"", "", "", ""},
-	
+
 	[...]string{"Frank Wöckener <fwoeck@dokmatic.com>",
 		"Frank Wöckener", "", "fwoeck@dokmatic.com", "dokmatic.com"},
 }

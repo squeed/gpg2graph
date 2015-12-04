@@ -29,31 +29,30 @@ func doQueries(conn *neoism.Database, queries []string) {
 }
 
 func addConstraints(conn *neoism.Database) {
-	
-	_, err := conn.CreateUniqueConstraint("Key", "keyid");
+
+	_, err := conn.CreateUniqueConstraint("Key", "keyid")
 	if err != nil {
 		app.Logger.Info("Failed to create constraint, probably already exists")
 	}
-	
-	_, err = conn.CreateUniqueConstraint("UserID", "uuid");
+
+	_, err = conn.CreateUniqueConstraint("UserID", "uuid")
 	if err != nil {
 		app.Logger.Info("Failed to create constraint, probably already exists")
 	}
 }
 
 func addIndexes(conn *neoism.Database) {
-	
+
 	_, err := conn.CreateIndex("Key", "domain")
 	if err != nil {
 		app.Logger.Info("Failed to create index, probably already exists")
 	}
-	
+
 	_, err = conn.CreateIndex("Key", "email")
 	if err != nil {
 		app.Logger.Info("Failed to create index, probably already exists")
 	}
 }
-
 
 func LoadKeys(app App, in chan *puck_gpg.PrimaryKey) {
 	for key := range in {
@@ -63,7 +62,7 @@ func LoadKeys(app App, in chan *puck_gpg.PrimaryKey) {
 
 func LoadKey(app App, key *puck_gpg.PrimaryKey) {
 	conn := app.GraphDB
-	
+
 	kid := key.KeyID()
 
 	app.Logger.Debugf("Got key ID %s fpr %s", kid, key.Fingerprint())
@@ -73,7 +72,7 @@ func LoadKey(app App, key *puck_gpg.PrimaryKey) {
 
 	for _, uid := range key.UserIDs {
 		InsertUID(conn, key, uid)
-		
+
 		for _, sig := range uid.Signatures {
 			if sig.IssuerKeyID() == kid {
 				continue
@@ -96,7 +95,7 @@ func InsertPubKey(conn *neoism.Database, k *puck_gpg.PrimaryKey) {
 			ON MATCH SET
 			n.fingerprint = {fingerprint};`,
 		Parameters: neoism.Props{
-			"keyid": k.KeyID(),
+			"keyid":       k.KeyID(),
 			"fingerprint": k.Fingerprint()}}
 
 	err := conn.Cypher(&cq0)
@@ -168,15 +167,15 @@ func InsertSignature(conn *neoism.Database, pubkey *puck_gpg.PrimaryKey, uid *pu
 				(n:Key {keyid: {signer}})
 			MERGE n-[r:SIGNS]->i`,
 		Parameters: neoism.Props{
-			"uuid":     uid.UUID,
-			"signee":   signeeKID,
-			"signer":   signerKID,
+			"uuid":   uid.UUID,
+			"signee": signeeKID,
+			"signer": signerKID,
 		},
 	}
 	err = conn.Cypher(&q_signature)
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	app.SigCounter.Mark(1)
 }
