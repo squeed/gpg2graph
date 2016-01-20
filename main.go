@@ -69,7 +69,6 @@ func main() {
 	}
 
 	initMetrics(&app)
-	//go metrics.Log(metrics.DefaultRegistry, 10e9, log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
 
 	filename := flag.Arg(0)
 	keych := make(KeyChan)

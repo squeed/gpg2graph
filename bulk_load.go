@@ -198,6 +198,7 @@ func WriteUID(uid_writer *csv.Writer, key *puck_gpg.PrimaryKey, uid *puck_gpg.Us
 	kw := uid.Keywords
 	kw = strings.Replace(kw, `"`, ``, -1)
 	kw = strings.Replace(kw, "\n", ` `, -1)
+	kw = strings.Replace(kw, `\`, ` `, -1)
 
 	parsed := parseUID(kw)
 
